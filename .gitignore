@@ -1,0 +1,25 @@
+# Environments
+.venv/
+venv/
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Vector stores / caches
+chroma_db/
+solution_chroma_db/
+rag_vectorstore/
+**/agent_vectorstore/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
