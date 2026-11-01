@@ -25,3 +25,12 @@ goals:
     conservative: {expected_return: 0.04, volatility: 0.06}
     moderate: {expected_return: 0.06, volatility: 0.11}
     aggressive: {expected_return: 0.08, volatility: 0.16}
+rag:
+  articles_dir: src/data/knowledge_base
+  persist_dir: chroma_db
+  collection: finance_kb
+  embedding_model: text-embedding-3-small
+  chunk_size: 900
+  chunk_overlap: 120
+  top_k: 4
+  min_score: 0.3  # starting value, to be tuned with the retrieval evals

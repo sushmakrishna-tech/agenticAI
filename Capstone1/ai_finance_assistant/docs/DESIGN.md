@@ -13,7 +13,8 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | Streamlit app | Chat works; dashboard tabs are placeholders |
 | Six agents | Stubs that return placeholder text |
 | Portfolio metrics, goal projections | Built and tested, not yet connected to agents or the UI |
-| Knowledge base, MCP server | Planned |
+| Knowledge base and search | Built with 71 articles, not yet connected to agents |
+| MCP server | Planned |
 
 ## System overview
 ```mermaid
@@ -45,21 +46,21 @@ flowchart TB
     classDef stub fill:#fef3c7,stroke:#b45309,color:#78350f
     classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
     classDef external fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
-    class ui,router,merge,compliance,market built
+    class ui,router,merge,compliance,market,calculators,rag built
     class agents stub
-    class calculators,rag,mcp planned
+    class mcp planned
     class openai,providers external
     style workflow fill:#f8fafc,stroke:#94a3b8,color:#0f172a
     style tools fill:#f8fafc,stroke:#94a3b8,color:#0f172a
 ```
-**Key:** green is built, yellow is a stub, gray is planned, and blue is an external service. Dashed arrows are connections that don't exist yet. Only the router calls OpenAI today, and only the market data service uses yFinance and Alpha Vantage.
+**Key:** green is built, yellow is a stub, gray is planned, and blue is an external service. Dashed arrows are connections that don't exist yet, and agents don't call these tools until they are implemented. Only the router calls OpenAI today, and only the market data service uses yFinance and Alpha Vantage.
 
 ## Stack
 | Concern | Choice | Why |
 |---|---|---|
 | Orchestration and state | LangGraph | Named in the rubric; explicit graph, parallel branches, built-in memory |
 | LLM | OpenAI, set in `config.yaml` | Key available; created in one file (`src/core/llm.py`) |
-| Vector store | Chroma (planned) | Runs locally with metadata filtering for categories |
+| Vector store | Chroma | Runs locally with metadata filtering for categories |
 | Market data | yFinance, Alpha Vantage fallback | Free primary source plus a backup |
 | UI | Streamlit | Named in the rubric; quick multi-tab app |
 
@@ -162,8 +163,15 @@ Quotes stay fresh for 60 seconds and history for an hour. A rate-limited provide
 ## Goal projections
 `src/utils/goal_projections.py` gives a straight-line estimate and a seeded Monte Carlo simulation of monthly lognormal returns. Targets grow with inflation, and contributions stay flat. Return and volatility assumptions are illustrative values in `config.yaml`, and taxes and fees are ignored.
 
-## RAG (planned)
-50-100 summaries of public sources (Investor.gov, FINRA, IRS), each tagged with category and source URL, retrieved with category filters and cited in answers.
+## RAG
+71 articles summarize public pages from Investor.gov, FINRA, and the IRS in `src/data/knowledge_base/`. Each is tagged with one of six categories, its source URL, and its retrieval date. Indexing fails if an article has no source on those domains.
+
+- **Chunking:** split at `##` headings, then paragraphs and sentences, up to 900 characters with 120 overlapping. Each chunk starts with its article title and section. The result is 108 chunks.
+- **Embedding:** OpenAI `text-embedding-3-small`.
+- **Storage:** local Chroma with cosine distance, rebuilt in full by `python -m src.rag.build_index`.
+- **Search:** top 4 chunks, optionally filtered by category, dropping scores below 0.3.
+
+**Accuracy:** tax amounts carry their tax year and need refreshing each year. Every figure was checked against the saved text of its source page, which confirms the numbers appear there but not that each is used correctly.
 
 ```mermaid
 flowchart LR
@@ -172,11 +180,20 @@ flowchart LR
     chunks --> chroma[("Chroma")]
     question["Agent's question"] --> search["Search, filtered<br/>by category"]
     chroma --> search
-    search --> answer["Answer with citations"]
+    search --> answer["Results with citations"]
 
-    classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
-    class sources,summaries,chunks,chroma,question,search,answer planned
+    classDef built fill:#d1fae5,stroke:#047857,color:#064e3b
+    class sources,summaries,chunks,chroma,question,search,answer built
 ```
 
-## Performance (planned)
-Benchmarks for router accuracy, retrieval hit rate, and latency, from a labeled question set.
+## Performance
+Retrieval, measured by `python -m src.rag.evaluate` on 40 labeled questions and 5 off-topic ones:
+
+| Metric | Result |
+|---|---|
+| Correct article ranked first | 100% |
+| Lowest score for a correct article | 0.33 |
+| Highest off-topic score | 0.21 |
+| Median search time, including the embedding call | About 210 ms |
+
+These are optimistic: the questions were written by the author of the articles, so they are not an independent test. Router accuracy and end-to-end benchmarks are still planned.

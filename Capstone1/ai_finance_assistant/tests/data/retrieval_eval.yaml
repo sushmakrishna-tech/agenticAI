@@ -1,0 +1,48 @@
+# Each question lists the articles that would count as a correct retrieval.
+questions:
+  - {q: "How much can I contribute to an IRA in 2026?", expect: [ira-contribution-limits]}
+  - {q: "What's the difference between a Roth and a traditional IRA?", expect: [ira-types-compared, roth-ira-basics, traditional-ira]}
+  - {q: "If I sell a stock after 8 months is it short term?", expect: [capital-gains-basics]}
+  - {q: "What is my 401k limit if I'm 62?", expect: [401k-contribution-limits]}
+  - {q: "Will I pay a penalty for taking money out of my 401k at 45?", expect: [early-plan-withdrawals, early-withdrawal-exceptions-compared]}
+  - {q: "Can I use my IRA to buy my first house without penalty?", expect: [early-ira-withdrawals]}
+  - {q: "At what age do I have to start taking money from my retirement account?", expect: [required-minimum-distributions]}
+  - {q: "Are qualified dividends taxed differently?", expect: [dividend-taxes]}
+  - {q: "Is Treasury bond interest taxed by my state?", expect: [interest-income-taxes]}
+  - {q: "What is the 2026 standard deduction?", expect: [federal-income-tax-2026]}
+  - {q: "How do I move my old 401k to a new account?", expect: [retirement-rollovers, switching-jobs-retirement]}
+  - {q: "What is cost basis?", expect: [cost-basis]}
+  - {q: "What is an ETF?", expect: [etfs-and-etps]}
+  - {q: "How is a mutual fund different from buying stocks?", expect: [mutual-funds]}
+  - {q: "Why do bond prices fall when interest rates go up?", expect: [bonds-basics]}
+  - {q: "What's a put option?", expect: [options]}
+  - {q: "Are CDs insured?", expect: [certificates-of-deposit, bank-products]}
+  - {q: "Is crypto a safe investment?", expect: [crypto-assets]}
+  - {q: "Can I invest in real estate without buying property?", expect: [reits]}
+  - {q: "What's the difference between common and preferred stock?", expect: [types-of-stocks]}
+  - {q: "What is a limit order?", expect: [order-types]}
+  - {q: "What happens in a margin call?", expect: [cash-and-margin-accounts]}
+  - {q: "Why did I get a different price than what I saw on my screen?", expect: [how-trades-execute, order-types]}
+  - {q: "What does going public mean for a company?", expect: [public-companies]}
+  - {q: "What is beta?", expect: [volatility-and-beta]}
+  - {q: "How should I think about how much risk to take if I need the money in 3 years?", expect: [risk-tolerance]}
+  - {q: "What is rebalancing?", expect: [allocation-diversification-rebalancing]}
+  - {q: "Does diversification protect me from losing money?", expect: [diversification, allocation-diversification-rebalancing]}
+  - {q: "Who gets paid first if a company goes bankrupt?", expect: [business-and-volatility-risk]}
+  - {q: "How often should I review my portfolio?", expect: [evaluating-performance]}
+  - {q: "How do I save for my kid's college?", expect: [529-plans]}
+  - {q: "Is an employer match worth it?", expect: [first-job-retirement]}
+  - {q: "What is the difference between a pension and a 401k?", expect: [employer-retirement-plans]}
+  - {q: "How do I avoid investment scams?", expect: [avoiding-investment-fraud, five-questions-before-investing]}
+  - {q: "What if I outlive my retirement savings?", expect: [managing-retirement-income]}
+  - {q: "How much should I keep in an emergency fund?", expect: [emergency-savings]}
+  - {q: "Should I pay off my credit card before investing?", expect: [high-interest-debt]}
+  - {q: "How much do fees really matter?", expect: [impact-of-investment-fees, types-of-investment-fees]}
+  - {q: "How does compound interest work?", expect: [compound-growth]}
+  - {q: "How do I calculate my net worth?", expect: [net-worth-and-cash-flow, paying-yourself-first]}
+off_topic:
+  - What's a good recipe for banana bread?
+  - Who won the World Cup in 2022?
+  - How do I fix a leaky faucet?
+  - What is the capital of France?
+  - Write me a Python function to sort a list.
