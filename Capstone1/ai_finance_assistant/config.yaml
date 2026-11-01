@@ -12,3 +12,16 @@ market_data:
   history_ttl_seconds: 3600
   rate_limit_cooldown_seconds: 60
   request_timeout_seconds: 10
+portfolio:
+  benchmark: ^GSPC  # S&P 500
+  risk_period: 1y
+  risk_free_rate: 0.04  # assumption used in the Sharpe ratio
+goals:
+  inflation: 0.025
+  simulations: 5000
+  random_seed: 42  # same inputs give the same result
+  # Illustrative long-term assumptions, not forecasts. Nominal annual values.
+  risk_profiles:
+    conservative: {expected_return: 0.04, volatility: 0.06}
+    moderate: {expected_return: 0.06, volatility: 0.11}
+    aggressive: {expected_return: 0.08, volatility: 0.16}

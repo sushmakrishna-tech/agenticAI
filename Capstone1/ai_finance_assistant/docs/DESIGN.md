@@ -12,7 +12,8 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | Market data layer | Built; Alpha Vantage tested only against simulated responses |
 | Streamlit app | Chat works; dashboard tabs are placeholders |
 | Six agents | Stubs that return placeholder text |
-| Portfolio metrics, goal projections, knowledge base, MCP server | Planned |
+| Portfolio metrics, goal projections | Built and tested, not yet connected to agents or the UI |
+| Knowledge base, MCP server | Planned |
 
 ## System overview
 ```mermaid
@@ -154,6 +155,12 @@ flowchart LR
     class invalid,error bad
 ```
 Quotes stay fresh for 60 seconds and history for an hour. A rate-limited provider is skipped for a cooldown period. The free Alpha Vantage series covers about 100 trading days, so long-range requests served by the fallback come back shorter.
+
+## Portfolio metrics
+`src/utils/portfolio_metrics.py` calculates value, weights, gains, effective number of holdings, volatility, max drawdown, Sharpe ratio, and beta against the S&P 500. Risk metrics apply today's weights to past daily returns, so they describe the current mix rather than the user's actual results. Returns are not annualized below 200 trading days. The metrics can't see inside funds, so a broad ETF counts as one holding and observations word concentration accordingly. Holdings' returns include dividends while the S&P 500 index does not, which slightly flatters comparisons against it. Observations state facts and never say what to do. Missing prices or history are reported, not hidden.
+
+## Goal projections
+`src/utils/goal_projections.py` gives a straight-line estimate and a seeded Monte Carlo simulation of monthly lognormal returns. Targets grow with inflation, and contributions stay flat. Return and volatility assumptions are illustrative values in `config.yaml`, and taxes and fees are ignored.
 
 ## RAG (planned)
 50-100 summaries of public sources (Investor.gov, FINRA, IRS), each tagged with category and source URL, retrieved with category filters and cited in answers.
