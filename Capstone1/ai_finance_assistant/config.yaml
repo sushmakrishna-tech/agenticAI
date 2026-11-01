@@ -1,0 +1,9 @@
+llm:
+  # Cheap model for development. Any OpenAI chat model your key can access works.
+  model: gpt-4o-mini
+  temperature: 0.2
+  timeout_seconds: 30
+compliance:
+  disclaimer: >-
+    This is general financial education, not personalized financial, tax, or
+    legal advice. Consider consulting a licensed professional before acting.
