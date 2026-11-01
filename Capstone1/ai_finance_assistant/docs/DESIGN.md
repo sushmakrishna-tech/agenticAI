@@ -11,9 +11,12 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | LangGraph workflow, router, memory, compliance | Built |
 | Market data layer | Built; Alpha Vantage tested only against simulated responses |
 | Streamlit app | Chat works; dashboard tabs are placeholders |
-| Six agents | Stubs that return placeholder text |
-| Portfolio metrics, goal projections | Built and tested, not yet connected to agents or the UI |
-| Knowledge base and search | Built with 71 articles, not yet connected to agents |
+| Six agents | Built and tested with live data; not yet tested with the UI dashboards |
+| Portfolio metrics, goal projections | Built and used by the agents; dashboards still planned |
+| Knowledge base and search | Built with 71 articles and used by the agents |
+| Portfolio and goal tab dashboards | Planned |
+| Arize tracing | Built; sends without errors, arrival in Arize awaiting confirmation |
+| End-to-end evals, metrics, and user feedback | Built; results in `docs/EVAL_RESULTS.md` |
 | User accounts and saved conversations (SQLite) | Planned |
 | MCP server | Planned |
 
@@ -31,7 +34,7 @@ flowchart TB
     end
 
     workflow --> openai[("OpenAI API")]
-    workflow -.-> tools
+    workflow --> tools
     mcp["MCP server"] -.-> tools
 
     subgraph tools["Tools the agents will use"]
@@ -47,14 +50,14 @@ flowchart TB
     classDef stub fill:#fef3c7,stroke:#b45309,color:#78350f
     classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
     classDef external fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
-    class ui,router,merge,compliance,market,calculators,rag built
+    class ui,router,agents,merge,compliance,market,calculators,rag built
     class agents stub
     class mcp planned
     class openai,providers external
     style workflow fill:#f8fafc,stroke:#94a3b8,color:#0f172a
     style tools fill:#f8fafc,stroke:#94a3b8,color:#0f172a
 ```
-**Key:** green is built, yellow is a stub, gray is planned, and blue is an external service. Dashed arrows are connections that don't exist yet, and agents don't call these tools until they are implemented. Only the router calls OpenAI today, and only the market data service uses yFinance and Alpha Vantage.
+**Key:** green is built, gray is planned, and blue is an external service. Dashed arrows are connections that don't exist yet. Only the market data service uses yFinance and Alpha Vantage.
 
 ## Stack
 | Concern | Choice | Why |
@@ -87,9 +90,8 @@ flowchart LR
     compliance --> finish(["END"])
 
     classDef built fill:#d1fae5,stroke:#047857,color:#064e3b
-    classDef stub fill:#fef3c7,stroke:#b45309,color:#78350f
     class router,merge,compliance built
-    class qa,portfolio,market,goals,news,tax stub
+    class qa,portfolio,market,goals,news,tax built
 ```
 - **Router:** the LLM picks one or more agents using structured output. Keyword rules take over if there is no key or the call fails.
 - **Agents:** each takes state and returns one `AgentOutput`.
@@ -128,8 +130,20 @@ sequenceDiagram
 ## Agent communication
 Agents do not call each other. They communicate only through shared state (`src/core/state.py`), which keeps them independently testable. Results are combined by the `collect_outputs` reducer; the router clears it each turn so old answers do not leak into the next one.
 
+## Agents
+| Agent | Gets facts from | Without an LLM |
+|---|---|---|
+| Finance Q&A | Knowledge base, all categories | Shows the retrieved text |
+| Tax Education | Knowledge base, tax category | Shows the retrieved text |
+| Portfolio Analysis | Market data and portfolio metrics | Shows metrics for holdings entered in the Portfolio tab; asks otherwise |
+| Market Analysis | Market data | Shows an index overview |
+| Goal Planning | Goal projections | Asks for details |
+| News Synthesizer | Yahoo headlines | Searches the message text and lists matching headlines |
+
+News has no separate backup provider because Alpha Vantage's news feed is premium-only. Headlines that don't mention a requested company are dropped.
+
 ## Key decisions
-1. **Code calculates, the LLM explains.** Financial figures will come from tested Python, so the model cannot invent them. This is a design rule until the real agents are built.
+1. **Code calculates, the LLM explains.** Financial figures come from tested Python. Prompts alone did not hold in live testing, so `explain` in `src/agents/common.py` also rejects any answer containing a dollar amount, percentage, or year absent from its source data and the user's message, and shows the verified facts instead. It does not check other claims in the wording, which is what the planned evals cover.
 2. **Failures stay contained.** A failing agent yields an error output, and other agents still answer.
 3. **Conversation memory is per thread.** Today, `InMemorySaver` keeps it only while the server runs, and refreshing the page starts a new conversation. Accounts and SQLite storage are planned to replace this (see below).
 4. **Compliance is enforced by the graph,** so no agent can skip it.
@@ -208,6 +222,22 @@ flowchart LR
     class sources,summaries,chunks,chroma,question,search,answer built
 ```
 
+## Observability
+**Arize AX** is the chosen tracing and evaluation platform, using its hosted service, so nothing extra runs locally or on AWS. `src/utils/tracing.py` connects it using OpenInference, an OpenTelemetry-based standard. Each request becomes a trace made of spans for the router, each agent, and LLM calls.
+
+Tracing is off unless `ARIZE_TRACING=true`, and it must start before LangChain is imported. A tracing failure logs a warning and never stops the app. Traces send prompts to a third party, including anything users type and portfolio details, so tracing is for development with made-up data.
+
+## Metrics
+See [METRICS.md](METRICS.md) for the complete list and what each metric means.
+
+**On every trace:** route and how it was chosen, each agent's errors and citation count, retrieval result count and top score, market data provider and cache hits, and compliance flags. Custom spans cover knowledge search, market data, news search, portfolio metrics, and goal simulations. They attach to LangChain's active span, because its instrumentor does not set OpenTelemetry's current span. Traces are grouped into sessions by conversation.
+
+**Event counts** (`src/utils/metrics.py`): rejected answers, routing fallbacks, failed extractions and explanations, empty retrievals, market provider fallbacks, stale prices, agent exceptions, and compliance flags.
+
+**User feedback:** thumbs up or down in the chat, saved to a local `feedback.jsonl` with no conversation text.
+
+**Evals** (`python -m src.workflow.evaluate`): routing, faithfulness, relevance, advice safety, out-of-scope handling, latency, LLM calls, cost, and token-limit cutoffs. Judge failures are reviewed by hand, because the judge can be wrong.
+
 ## Performance
 Retrieval, measured by `python -m src.rag.evaluate` on 40 labeled questions and 5 off-topic ones:
 
@@ -218,4 +248,4 @@ Retrieval, measured by `python -m src.rag.evaluate` on 40 labeled questions and 
 | Highest off-topic score | 0.21 |
 | Median search time, including the embedding call | About 210 ms |
 
-These are optimistic: the questions were written by the author of the articles, so they are not an independent test. Router accuracy and end-to-end benchmarks are still planned.
+These are optimistic: the questions were written by the author of the articles, so they are not an independent test. End-to-end results are in [EVAL_RESULTS.md](EVAL_RESULTS.md).

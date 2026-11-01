@@ -1,7 +1,7 @@
 """Builds the Chroma index and searches it."""
 import logging
+import threading
 from dataclasses import dataclass
-from functools import lru_cache
 
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
@@ -12,6 +12,8 @@ from src.rag.chunking import chunk_article
 
 logger = logging.getLogger(__name__)
 BATCH_SIZE = 200
+_store = None
+_store_lock = threading.Lock()
 
 
 class KnowledgeBaseError(Exception):
@@ -87,8 +89,18 @@ def build_default_index() -> tuple[int, int]:
     return len(articles), chunks
 
 
-@lru_cache
 def get_store() -> Chroma:
-    """The saved index, for agents to search."""
-    cfg = get_config()["rag"]
-    return _open_store(_embeddings(), str(PROJECT_ROOT / cfg["persist_dir"]), cfg["collection"])
+    """The saved index, shared by all agents.
+
+    Agents run in parallel and Chroma's startup isn't thread-safe, so the lock
+    ensures only one thread opens it. A failure isn't saved, so a later call retries.
+    """
+    global _store
+    with _store_lock:
+        if _store is None:
+            cfg = get_config()["rag"]
+            store = _open_store(_embeddings(), str(PROJECT_ROOT / cfg["persist_dir"]), cfg["collection"])
+            if not store.get(limit=1)["ids"]:
+                raise KnowledgeBaseError("The search index is empty. Run: python -m src.rag.build_index")
+            _store = store
+        return _store

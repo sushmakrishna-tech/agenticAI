@@ -17,6 +17,7 @@ class AgentOutput(TypedDict):
     content: str
     sources: list[str]
     error: bool
+    facts: str  # the verified data behind the answer, used by evals
 
 
 def collect_outputs(
@@ -41,6 +42,7 @@ class UserProfile(TypedDict, total=False):
 class FinanceState(TypedDict, total=False):
     messages: Annotated[list[AnyMessage], add_messages]  # appended, never replaced
     profile: UserProfile
+    holdings: list[dict]  # from the Portfolio tab; otherwise read from the chat
     route: list[AgentName]
     route_source: Literal["llm", "keyword"]
     agent_outputs: Annotated[list[AgentOutput], collect_outputs]

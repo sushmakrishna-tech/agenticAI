@@ -19,6 +19,7 @@ import requests
 import yfinance as yf
 
 from src.core.config import get_alpha_vantage_key, get_config
+from src.utils.metrics import annotate, record, traced
 
 logger = logging.getLogger(__name__)
 
@@ -172,12 +173,18 @@ class MarketDataService:
         self._lock = threading.Lock()
 
     def _fetch(self, key: tuple, ttl: float, call: Callable[[Provider], object]):
+        with traced("market_data", request=key[0], symbol=key[1]):
+            return self._fetch_inner(key, ttl, call)
+
+    def _fetch_inner(self, key: tuple, ttl: float, call: Callable[[Provider], object]):
         with self._lock:
             cached = self._cache.get(key)
         if cached and self.clock() - cached[0] < ttl:
+            annotate(cache_hit=True)
             return cached[1]
 
-        for provider in self.providers:
+        annotate(cache_hit=False)
+        for position, provider in enumerate(self.providers):
             with self._lock:
                 if self.clock() < self._blocked_until.get(provider.name, 0):
                     continue
@@ -192,11 +199,16 @@ class MarketDataService:
             else:
                 with self._lock:
                     self._cache[key] = (self.clock(), result)
+                annotate(provider=provider.name)
+                if position > 0:
+                    record("market_provider_fallback")
                 return result
 
         if cached:
             logger.warning("All providers failed; serving stale data for %s", key)
+            record("market_stale_served")
             return replace(cached[1], stale=True)
+        record("market_data_unavailable")
         raise MarketDataError(f"No market data available for {key[1]}")
 
     def get_quote(self, symbol: str) -> Quote:

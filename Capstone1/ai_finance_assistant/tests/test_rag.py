@@ -148,3 +148,48 @@ def test_search_failure_is_a_clear_error():
 
     with pytest.raises(KnowledgeBaseError):
         search(Broken(), "roth")
+
+
+def test_parallel_agents_share_one_store_opened_once(monkeypatch):
+    import threading
+    import time
+
+    from src.rag import store as store_module
+
+    opened = []
+
+    class Store:
+        def get(self, limit):
+            return {"ids": ["x"]}
+
+    def slow_open(*args):
+        opened.append(1)
+        time.sleep(0.05)  # widens the window a race would need
+        return Store()
+
+    monkeypatch.setattr(store_module, "_store", None)
+    monkeypatch.setattr(store_module, "_open_store", slow_open)
+    monkeypatch.setattr(store_module, "_embeddings", lambda: None)
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(store_module.get_store())) for _ in range(6)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert len(opened) == 1
+    assert len(results) == 6 and len(set(map(id, results))) == 1
+
+
+def test_empty_index_is_a_clear_error_and_retries(monkeypatch):
+    from src.rag import store as store_module
+
+    class Empty:
+        def get(self, limit):
+            return {"ids": []}
+
+    monkeypatch.setattr(store_module, "_store", None)
+    monkeypatch.setattr(store_module, "_open_store", lambda *a: Empty())
+    monkeypatch.setattr(store_module, "_embeddings", lambda: None)
+    with pytest.raises(KnowledgeBaseError):
+        store_module.get_store()
+    assert store_module._store is None

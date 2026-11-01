@@ -74,3 +74,30 @@ def test_reducer_clears_on_none():
     out = AgentOutput(agent="tax", content="x", sources=[], error=False)
     assert collect_outputs([out], None) == []
     assert collect_outputs([out], [out]) == [out, out]
+
+
+def test_merge_adds_a_link_between_sections_and_keeps_them():
+    from src.workflow.graph import make_merge_node
+
+    class LLM:
+        def invoke(self, messages):
+            from langchain_core.messages import AIMessage
+            return AIMessage("These connect.")
+
+    outputs = [AgentOutput(agent=a, content=f"{a} answer", sources=[], error=False) for a in ("tax", "goals")]
+    state = {"agent_outputs": outputs, "messages": [HumanMessage("q")]}
+    draft = make_merge_node(LLM())(state)["draft"]
+    assert draft.startswith("These connect.")
+    assert "goals answer" in draft and "tax answer" in draft
+
+
+def test_merge_skips_the_link_when_an_agent_failed():
+    from src.workflow.graph import make_merge_node
+
+    class LLM:
+        def invoke(self, messages):
+            raise AssertionError("should not be called")
+
+    outputs = [AgentOutput(agent="tax", content="ok", sources=[], error=False),
+               AgentOutput(agent="goals", content="down", sources=[], error=True)]
+    make_merge_node(LLM())({"agent_outputs": outputs, "messages": [HumanMessage("q")]})

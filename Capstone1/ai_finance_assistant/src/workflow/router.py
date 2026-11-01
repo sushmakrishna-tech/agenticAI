@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from src.agents.registry import AGENTS
 from src.core.state import AgentName, FinanceState
+from src.utils.metrics import annotate, record
 
 logger = logging.getLogger(__name__)
 HISTORY_WINDOW = 6  # recent messages, so follow-ups like "and the taxes?" make sense
@@ -37,9 +38,13 @@ def keyword_route(text: str) -> list[str]:
 def _prompt() -> str:
     agents = "\n".join(f"- {name}: {a.description}" for name, a in AGENTS.items())
     return (
-        "Route the user's latest message to the agent(s) that should answer it. "
-        "Choose several only if the question truly spans several areas. "
-        "Use the earlier messages to interpret follow-ups.\n\n"
+        "Route the user's latest message to the fewest agents that can answer it. Most messages "
+        "need one. Choose several only if it clearly asks about separate areas. Use the earlier "
+        "messages to interpret follow-ups.\n"
+        "- A personal savings target with amounts or a timeline goes to goals alone.\n"
+        "- Whether to buy or sell a specific stock goes to market.\n"
+        "- Anything unrelated to personal finance or investing goes to finance_qa alone, "
+        "which will decline it.\n\n"
         f"Agents:\n{agents}"
     )
 
@@ -59,9 +64,12 @@ def make_router(llm):
                 route, source = list(dict.fromkeys(decision.agents)), "llm"
             except Exception:
                 logger.exception("LLM routing failed; using keyword rules")
+                record("routing_fallback")
         # agent_outputs=None clears the previous turn (see collect_outputs).
+        route = route or keyword_route(str(latest.content))
+        annotate(route=route, route_source=source)
         return {
-            "route": route or keyword_route(str(latest.content)),
+            "route": route,
             "route_source": source,
             "agent_outputs": None,
         }

@@ -34,3 +34,11 @@ rag:
   chunk_overlap: 120
   top_k: 4
   min_score: 0.3  # starting value, to be tuned with the retrieval evals
+news:
+  cache_ttl_seconds: 900
+  max_articles: 6
+tracing:
+  project_name: ai-finance-assistant
+pricing:  # USD per 1M tokens, from OpenAI's docs on 2026-11-01. Update when the model changes.
+  input_per_million: 0.15
+  output_per_million: 0.60

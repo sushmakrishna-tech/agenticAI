@@ -5,6 +5,7 @@ from langchain_core.messages import AIMessage
 
 from src.core.config import get_config
 from src.core.state import FinanceState
+from src.utils.metrics import annotate, record
 
 ADVICE_PATTERNS = {
     "direct_recommendation": r"\byou should (buy|sell|invest in)\b|\bi recommend (buying|selling)\b",
@@ -32,4 +33,7 @@ def apply_compliance(text: str) -> tuple[str, list[str]]:
 
 def compliance_node(state: FinanceState) -> dict:
     final, flags = apply_compliance(state["draft"])
+    annotate(compliance_flags=flags)
+    if flags:
+        record("compliance_flagged")
     return {"messages": [AIMessage(content=final)], "compliance_flags": flags}
