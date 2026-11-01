@@ -7,3 +7,8 @@ compliance:
   disclaimer: >-
     This is general financial education, not personalized financial, tax, or
     legal advice. Consider consulting a licensed professional before acting.
+market_data:
+  quote_ttl_seconds: 60
+  history_ttl_seconds: 3600
+  rate_limit_cooldown_seconds: 60
+  request_timeout_seconds: 10

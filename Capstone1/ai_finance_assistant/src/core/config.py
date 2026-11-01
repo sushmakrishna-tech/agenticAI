@@ -19,3 +19,8 @@ def get_config() -> dict:
 def get_openai_key() -> str | None:
     get_config()  # ensures .env has been loaded
     return os.getenv("OPENAI_API_KEY") or None
+
+
+def get_alpha_vantage_key() -> str | None:
+    get_config()
+    return os.getenv("ALPHA_VANTAGE_API_KEY") or None
