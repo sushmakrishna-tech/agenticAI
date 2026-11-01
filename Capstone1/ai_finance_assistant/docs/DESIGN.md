@@ -14,6 +14,7 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | Six agents | Stubs that return placeholder text |
 | Portfolio metrics, goal projections | Built and tested, not yet connected to agents or the UI |
 | Knowledge base and search | Built with 71 articles, not yet connected to agents |
+| User accounts and saved conversations (SQLite) | Planned |
 | MCP server | Planned |
 
 ## System overview
@@ -130,7 +131,7 @@ Agents do not call each other. They communicate only through shared state (`src/
 ## Key decisions
 1. **Code calculates, the LLM explains.** Financial figures will come from tested Python, so the model cannot invent them. This is a design rule until the real agents are built.
 2. **Failures stay contained.** A failing agent yields an error output, and other agents still answer.
-3. **Conversation memory is per thread.** `InMemorySaver` keeps it for the life of the server process, which is enough for a demo but is lost on restart.
+3. **Conversation memory is per thread.** Today, `InMemorySaver` keeps it only while the server runs, and refreshing the page starts a new conversation. Accounts and SQLite storage are planned to replace this (see below).
 4. **Compliance is enforced by the graph,** so no agent can skip it.
 
 ## Market data
@@ -162,6 +163,27 @@ Quotes stay fresh for 60 seconds and history for an hour. A rate-limited provide
 
 ## Goal projections
 `src/utils/goal_projections.py` gives a straight-line estimate and a seeded Monte Carlo simulation of monthly lognormal returns. Targets grow with inflation, and contributions stay flat. Return and volatility assumptions are illustrative values in `config.yaml`, and taxes and fees are ignored.
+
+## Accounts and saved conversations (planned)
+Users will create an account, log in, and return to their earlier conversations and profile. All data stays in one local SQLite file, which is excluded from Git.
+
+```mermaid
+flowchart LR
+    login["Sign up or log in"] --> users[("users<br/>password hash, profile")]
+    login --> list["Choose or start<br/>a conversation"]
+    list --> threads[("threads<br/>which user owns which")]
+    list --> graph["LangGraph workflow"]
+    graph <--> checkpoints[("checkpoints<br/>conversation state")]
+
+    classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
+    class login,users,list,threads,graph,checkpoints planned
+```
+
+- **Passwords:** stored only as salted `scrypt` hashes from Python's standard library, never as plain text. Login errors don't reveal whether an email exists.
+- **Conversations:** LangGraph's `SqliteSaver` replaces `InMemorySaver`. `build_graph` already accepts a checkpointer, so the workflow doesn't change.
+- **Access control:** a `threads` table records each conversation's owner, and the app checks ownership before loading one. Thread IDs alone are not treated as proof of access.
+- **Profile:** knowledge level, risk tolerance, and goals are saved per user and loaded into graph state.
+- **Limits:** the prototype has no email verification or password reset, and data is not encrypted at rest, so it is not suitable for real financial data as is. Logging in again after a page refresh is expected, though saved conversations remain. Moving to multiple servers would need a shared database such as Postgres.
 
 ## RAG
 71 articles summarize public pages from Investor.gov, FINRA, and the IRS in `src/data/knowledge_base/`. Each is tagged with one of six categories, its source URL, and its retrieval date. Indexing fails if an article has no source on those domains.
