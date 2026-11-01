@@ -5,7 +5,7 @@
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 
-from src.agents.common import explain
+from src.agents.common import explain, has_figures
 from src.agents.registry import AGENTS, as_node, build_agents
 from src.core.llm import get_llm
 from src.core.state import FinanceState
@@ -27,9 +27,12 @@ def make_merge_node(llm):
             working = [o for o in outputs if not o["error"]]
             if llm is not None and len(working) > 1:
                 # Sections stay intact, so a poor summary can't lose an agent's figures.
-                link = explain(llm, "In two sentences, say how these answers connect to the "
-                                    "user's question. Add no new numbers.", draft, state, fallback="")
-                if link:
+                link = explain(llm, "In one or two sentences, say which part of the user's question "
+                                    "each section below covers. Don't state conclusions, rules, or "
+                                    "amounts.", draft, state, fallback="")
+                # The figures check only proves a number exists somewhere in the draft,
+                # so a number here could still be misapplied. The sections carry them instead.
+                if link and not has_figures(link):
                     draft = f"{link}\n\n{draft}"
         sources = list(dict.fromkeys(s for o in outputs for s in o["sources"]))
         return {"draft": draft, "sources": sources}

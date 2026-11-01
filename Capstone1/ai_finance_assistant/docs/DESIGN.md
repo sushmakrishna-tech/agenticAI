@@ -147,6 +147,7 @@ News has no separate backup provider because Alpha Vantage's news feed is premiu
 2. **Failures stay contained.** A failing agent yields an error output, and other agents still answer.
 3. **Conversation memory is per thread.** Today, `InMemorySaver` keeps it only while the server runs, and refreshing the page starts a new conversation. Accounts and SQLite storage are planned to replace this (see below).
 4. **Compliance is enforced by the graph,** so no agent can skip it.
+5. **Rules that must hold are enforced in code.** Evals showed the model can ignore prompt rules, and an LLM judge can miss it. So the market agent adds the prediction refusal in code, and the summary linking several agents' sections is dropped if it contains any figures.
 
 ## Market data
 ```mermaid

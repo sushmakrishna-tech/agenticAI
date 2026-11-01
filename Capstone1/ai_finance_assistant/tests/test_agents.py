@@ -7,7 +7,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from src.agents.common import RULES, explain, invented_figures, money
 from src.agents.goals import GoalRequest, make_goals_agent
 from src.agents.knowledge import NOT_FOUND, make_knowledge_agent, standalone_question
-from src.agents.market import MarketRequest, make_market_agent
+from src.agents.market import NO_PREDICTION, MarketRequest, make_market_agent
 from src.agents.news import NewsRequest, make_news_agent
 from src.agents.portfolio import HoldingDetail, HoldingsRequest, make_portfolio_agent
 from src.agents.registry import AGENTS, build_agents
@@ -311,3 +311,28 @@ def test_news_ignores_an_invalid_symbol():
 def test_invented_years_are_caught():
     assert invented_figures("data up to October 2023", "as of 2026-10-30") == {("year", 2023)}
     assert invented_figures("as of October 30, 2026", "as of 2026-10-30") == set()
+
+
+def test_rules_cover_predictions():
+    assert "can't predict" in RULES
+
+
+def test_prediction_question_always_gets_the_refusal():
+    llm = FakeLLM(MarketRequest(symbols=["AAPL"], asks_prediction=True))
+    assert make_market_agent(llm, FakeMarket)(state("Will AAPL rise?"))["content"].startswith(NO_PREDICTION)
+
+
+def test_ordinary_market_question_has_no_refusal():
+    llm = FakeLLM(MarketRequest(symbols=["AAPL"]))
+    assert NO_PREDICTION not in make_market_agent(llm, FakeMarket)(state("AAPL price?"))["content"]
+
+
+def test_portfolio_facts_show_purchase_price():
+    from src.agents.portfolio import format_analysis
+    from src.utils.portfolio_metrics import Holding, analyze_portfolio
+
+    class Market(FakeMarket):
+        pass
+
+    facts = format_analysis(analyze_portfolio([Holding("AAPL", 2, 50)], Market()))
+    assert "bought at $50.00 per share" in facts and "gain at the latest price $100.00" in facts

@@ -59,3 +59,9 @@ def test_invalid_agent_name_is_rejected():
         RouteDecision(agents=["astrology"])
     with pytest.raises(ValueError):
         RouteDecision(agents=[])
+
+
+def test_router_prompt_pairs_holdings_with_tax():
+    from src.workflow.router import _prompt
+
+    assert "portfolio and tax together" in _prompt()

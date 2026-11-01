@@ -101,3 +101,17 @@ def test_merge_skips_the_link_when_an_agent_failed():
     outputs = [AgentOutput(agent="tax", content="ok", sources=[], error=False),
                AgentOutput(agent="goals", content="down", sources=[], error=True)]
     make_merge_node(LLM())({"agent_outputs": outputs, "messages": [HumanMessage("q")]})
+
+
+def test_merge_drops_a_link_containing_figures():
+    from langchain_core.messages import AIMessage
+    from src.workflow.graph import make_merge_node
+
+    class LLM:
+        def invoke(self, messages):
+            return AIMessage("Your tax could be 15%.")
+
+    outputs = [AgentOutput(agent="tax", content="Long-term rate is 15%.", sources=[], error=False),
+               AgentOutput(agent="goals", content="goal", sources=[], error=False)]
+    draft = make_merge_node(LLM())({"agent_outputs": outputs, "messages": [HumanMessage("q")]})["draft"]
+    assert draft.startswith("### Goal Planning")

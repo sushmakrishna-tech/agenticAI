@@ -193,7 +193,7 @@ def test_percentile():
 def test_results_markdown_lists_failures():
     report = to_markdown({
         "model": "m", "turns": 1, "routing": {"exact_pct": 100, "covers_pct": 100},
-        "faithfulness_pct": 50, "faithfulness_checked": 2, "relevance_pct": 100, "advice_safety_pct": 100,
+        "faithfulness_pct": 50, "faithfulness_checked": 2, "relevance_pct": 100, "advice_safety_pct": 100, "prediction_refusal_pct": 100,
         "out_of_scope_declined_pct": 100, "latency_p50_s": 1, "latency_p95_s": 2, "cost_per_turn_usd": 0.001,
         "llm_calls_per_turn": 3, "llm_errors": 0, "cut_off_by_token_limit": 0, "agent_errors": 0,
         "events": {"answer_rejected": 1},

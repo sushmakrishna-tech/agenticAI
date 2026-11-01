@@ -34,7 +34,8 @@ def format_analysis(a: PortfolioAnalysis) -> str:
     for p in a.positions:
         lines.append(f"- {p.symbol}: {p.shares:g} shares at {money(p.price)} = {money(p.value)}, "
                      f"{p.weight_pct:.1f}% of portfolio"
-                     + (f", gain {money(p.gain)}" if p.gain is not None else ""))
+                     + (f", bought at {money(p.cost_basis / p.shares)} per share, gain at the latest "
+                        f"price {money(p.gain)}" if p.gain is not None else ""))
     if a.risk:
         r = a.risk
         lines.append(f"Past behavior of today's mix, {r.start} to {r.end} ({r.days} trading days; "
@@ -71,7 +72,8 @@ def make_portfolio_agent(llm, get_market):
             return output("portfolio", "I couldn't get prices for those holdings right now.", error=True)
         facts = format_analysis(analysis)
         task = ("Explain what these results mean and what the notes show about diversification and "
-                "risk. Mention any missing or out-of-date data. Don't suggest specific trades.")
+                "risk. Mention any missing or out-of-date data. Gains use the latest price, not a future "
+                "sale price. Don't suggest trades, discuss taxes, or call results good or bad.")
         return output("portfolio", explain(llm, task, facts, state),
                       ["Market data: Yahoo Finance or Alpha Vantage"], facts=facts)
 

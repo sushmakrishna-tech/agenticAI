@@ -10,12 +10,15 @@ MAX_SYMBOLS = 5
 
 class MarketRequest(BaseModel):
     symbols: list[str] = Field(default_factory=list)
+    asks_prediction: bool = False
 
 
 INSTRUCTION = ("Read the user's latest message and list the tickers it asks about. Convert company "
                "names to US tickers, and use ^GSPC for the S&P 500, ^DJI for the Dow, and ^IXIC for "
                "the Nasdaq. Use earlier messages only to resolve words like \"it\". Return an empty "
-               "list for a general question about the market.")
+               "list for a general question about the market. Set asks_prediction to true if the "
+               "latest message asks what a price or market will do in the future.")
+NO_PREDICTION = "I can't predict what prices or markets will do. Here is what has already happened:"
 
 
 def describe(symbol: str, market) -> tuple[str, str | None]:
@@ -50,8 +53,13 @@ def make_market_agent(llm, get_market):
         if not any(source for _, source in described):
             return output("market", "Market data is unavailable right now.", error=True)
         facts = "\n".join(line for line, _ in described)
-        task = "Describe what these figures show, including any dates. Don't explain why prices moved or predict them."
+        task = ("Describe what these figures show, including any dates. Don't explain why prices moved or "
+                "predict them, and don't call past performance a good or positive sign.")
         sources = [f"Market data: {s}" for s in dict.fromkeys(s for _, s in described if s)]
-        return output("market", explain(llm, task, facts, state), sources, facts=facts)
+        answer = explain(llm, task, facts, state)
+        # Prompt rules didn't reliably produce this, so code adds it.
+        if request and request.asks_prediction:
+            answer = f"{NO_PREDICTION}\n\n{answer}"
+        return output("market", answer, sources, facts=facts)
 
     return run

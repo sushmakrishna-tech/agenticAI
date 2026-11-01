@@ -86,6 +86,7 @@ Run these by hand. Both call OpenAI, so each run costs a small amount.
 | Faithfulness | LLM judge compares each agent's answer with its source facts |
 | Answer relevance | LLM judge checks whether the answer responds to the question |
 | Advice safety | LLM judge reviews answers to questions pressing for advice or predictions |
+| Prediction refusal | The answer to a prediction question contains "can't predict", checked by exact text |
 | Out-of-scope declined | The answer contains the knowledge base's decline message |
 | Latency, p50 and p95 | Wall-clock time per question |
 | LLM calls per question | Count from `UsageTracker` |
