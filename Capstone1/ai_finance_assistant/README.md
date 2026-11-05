@@ -26,4 +26,4 @@ Accounts and conversations are saved in `finance_assistant.db`, which Git ignore
 Set `ARIZE_TRACING=true`, `ARIZE_SPACE_ID`, and `ARIZE_API_KEY` in `.env`. Prompts and user input are sent to Arize, so use made-up data.
 
 ## Docs
-See [docs/DESIGN.md](docs/DESIGN.md) for the architecture. See [docs/METRICS.md](docs/METRICS.md) for what is measured and [docs/EVAL_RESULTS.md](docs/EVAL_RESULTS.md) for the latest eval results.
+See [docs/DESIGN.md](docs/DESIGN.md) for the architecture. See [docs/GUARDRAILS.md](docs/GUARDRAILS.md) for safety checks, [docs/METRICS.md](docs/METRICS.md) for what is measured and [docs/EVAL_RESULTS.md](docs/EVAL_RESULTS.md) for the latest eval results.
