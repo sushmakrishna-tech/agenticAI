@@ -138,10 +138,16 @@ def test_portfolio_without_llm_still_gives_figures():
     assert "Total value: $200.00" in out["content"]
 
 
-def test_portfolio_prefers_holdings_from_the_tab():
-    llm = FakeLLM()
+def test_portfolio_uses_tab_holdings_when_chat_has_none():
+    llm = FakeLLM(HoldingsRequest(holdings=[]))
     make_portfolio_agent(llm, FakeMarket)(state("analyze", holdings=[{"symbol": "AAPL", "shares": 1}]))
-    assert len(llm.prompts) == 1  # explanation only, no extraction call
+    assert "Total value: $100.00" in llm.prompts[-1][1][1]
+
+
+def test_portfolio_holdings_in_the_chat_win_over_the_tab():
+    llm = FakeLLM(HoldingsRequest(holdings=[HoldingDetail(symbol="AAPL", shares=3)]))
+    make_portfolio_agent(llm, FakeMarket)(state("what if I owned 3 AAPL?", holdings=[{"symbol": "AAPL", "shares": 1}]))
+    assert "Total value: $300.00" in llm.prompts[-1][1][1]
 
 
 def test_portfolio_asks_when_no_holdings():

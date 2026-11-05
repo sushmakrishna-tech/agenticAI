@@ -20,6 +20,7 @@ from openinference.instrumentation import using_attributes
 from src.agents.registry import AGENTS
 from src.data.accounts import AccountError, AccountStore, get_db_path
 from src.utils.feedback import save_feedback
+from src.web_app.dashboards import render_goals, render_market, render_portfolio
 from src.workflow.graph import build_graph
 
 logger = logging.getLogger(__name__)
@@ -83,10 +84,10 @@ def render_sidebar(store: AccountStore, user: dict, graph) -> dict:
         profile = {
             "knowledge_level": st.selectbox(
                 "Knowledge level", KNOWLEDGE_LEVELS,
-                index=KNOWLEDGE_LEVELS.index(saved.get("knowledge_level", "beginner"))),
+                index=KNOWLEDGE_LEVELS.index(saved.get("knowledge_level", "beginner")), key="profile_knowledge"),
             "risk_tolerance": st.selectbox(
                 "Risk tolerance", RISK_LEVELS,
-                index=RISK_LEVELS.index(saved.get("risk_tolerance", "moderate"))),
+                index=RISK_LEVELS.index(saved.get("risk_tolerance", "moderate")), key="profile_risk"),
         }
         if profile != saved:
             store.save_profile(user["id"], profile)
@@ -154,11 +155,11 @@ chat_tab, portfolio_tab, market_tab, goals_tab = st.tabs(["Chat", "Portfolio", "
 with chat_tab:
     render_chat(store, user)
 with portfolio_tab:
-    st.info("The portfolio dashboard arrives in build step 5.")
+    render_portfolio(store, user)
 with market_tab:
-    st.info("The market overview arrives in build step 5.")
+    render_market()
 with goals_tab:
-    st.info("The goal planner arrives in build step 5.")
+    render_goals(profile)
 
 # st.chat_input stays outside the tabs so it remains pinned to the page bottom.
 if question := st.chat_input("Ask about investing, your portfolio, taxes..."):
@@ -171,7 +172,9 @@ if question := st.chat_input("Ask about investing, your portfolio, taxes..."):
         # Groups a conversation's traces in Arize. The user ID is random, not the email.
         with st.spinner("Thinking..."), using_attributes(session_id=thread_id, user_id=user["id"]):
             result = graph.invoke(
-                {"messages": [HumanMessage(content=question)], "profile": profile}, config
+                # Holdings are always sent, so removing them in the tab clears them here too.
+                {"messages": [HumanMessage(content=question)], "profile": profile,
+                 "holdings": store.get_holdings(user["id"])}, config
             )
     except Exception:
         logger.exception("Workflow failed")

@@ -12,9 +12,9 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | Market data layer | Built; Alpha Vantage tested only against simulated responses |
 | Streamlit app | Chat works; dashboard tabs are placeholders |
 | Six agents | Built and tested with live data; not yet tested with the UI dashboards |
-| Portfolio metrics, goal projections | Built and used by the agents; dashboards still planned |
+| Portfolio metrics, goal projections | Built and used by the agents and dashboards |
 | Knowledge base and search | Built with 71 articles and used by the agents |
-| Portfolio and goal tab dashboards | Planned |
+| Portfolio, Market, and Goals dashboards | Built |
 | Arize tracing | Built; traces confirmed in Arize |
 | End-to-end evals, metrics, and user feedback | Built; results in `docs/EVAL_RESULTS.md` |
 | User accounts and saved conversations (SQLite) | Built |
@@ -178,6 +178,19 @@ Quotes stay fresh for 60 seconds and history for an hour. A rate-limited provide
 
 ## Goal projections
 `src/utils/goal_projections.py` gives a straight-line estimate and a seeded Monte Carlo simulation of monthly lognormal returns. Targets grow with inflation, and contributions stay flat. Return and volatility assumptions are illustrative values in `config.yaml`, and taxes and fees are ignored.
+
+## Dashboards
+The Portfolio, Market, and Goals tabs use the same calculation code as the agents, drawn with Plotly in `src/web_app/charts.py`.
+
+| Tab | Shows |
+|---|---|
+| Portfolio | Holdings editor saved per user, value and gain, allocation, $100 in today's mix vs the S&P 500, risk figures, positions table |
+| Market | S&P 500, Dow, and Nasdaq with the day's change, plus a price chart for any ticker over 1 to 12 months |
+| Goals | Chance of reaching a goal, a fan chart of the middle outcome and the range 8 in 10 simulations fell within, and the same goal at each risk level |
+
+- **Holdings and chat:** holdings typed in a question win, so "what if I owned 10 AAPL?" works. Otherwise the Portfolio agent uses the saved holdings. This costs one extraction call even when saved holdings exist.
+- **Colors:** a colorblind-checked palette, blue for the main series and orange for the comparison, with direct labels so identity doesn't rely on color. Streamlit's theme handles light and dark mode.
+- **Cost of live data:** Streamlit runs every tab on each interaction, so the Market tab fetches quotes then. The 60-second cache limits this to about a second, once a minute.
 
 ## Accounts and saved conversations
 Users create an account, log in, and return to their earlier conversations and profile. All data stays in one local SQLite file, which is excluded from Git and readable only by its owner.

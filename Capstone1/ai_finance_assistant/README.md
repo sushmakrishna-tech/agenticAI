@@ -2,7 +2,7 @@
 
 A multi-agent assistant for US financial education, built with LangGraph and Streamlit.
 
-**Status:** in progress. The six agents answer through chat using live data and the knowledge base, and users can log in and return to saved conversations. Dashboards and the MCP server are planned.
+**Status:** in progress. The six agents answer through chat using live data and the knowledge base, users can log in and return to saved conversations, and the Portfolio, Market, and Goals tabs show dashboards. The MCP server is planned.
 
 ## Setup
 ```bash

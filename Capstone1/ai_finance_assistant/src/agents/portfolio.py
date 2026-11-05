@@ -55,10 +55,11 @@ def format_analysis(a: PortfolioAnalysis) -> str:
 
 def make_portfolio_agent(llm, get_market):
     def run(state):
-        details = state.get("holdings")
-        if not details:
-            request = extract(llm, HoldingsRequest, INSTRUCTION, state)
-            details = [h.model_dump() for h in request.holdings] if request else []
+        # Holdings typed in the chat win, so "what if I owned 10 AAPL?" works.
+        # Otherwise use the ones saved in the Portfolio tab.
+        request = extract(llm, HoldingsRequest, INSTRUCTION, state)
+        details = [h.model_dump() for h in request.holdings] if request else []
+        details = details or state.get("holdings") or []
         if not details:
             return output("portfolio", ASK)
         try:

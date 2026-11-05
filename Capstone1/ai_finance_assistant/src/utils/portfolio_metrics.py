@@ -76,6 +76,7 @@ class PortfolioAnalysis:
     unavailable: list[str] = field(default_factory=list)  # no price, left out of totals
     excluded_from_risk: list[str] = field(default_factory=list)  # priced, but no history
     observations: list[str] = field(default_factory=list)
+    growth: pd.DataFrame | None = None  # for charts: $100 in today's mix vs the benchmark
 
 
 def merge_holdings(holdings: list[Holding]) -> list[Holding]:
@@ -148,6 +149,29 @@ def compute_risk(
         beta=None if beta is None else float(beta),
         benchmark_return_pct=None if benchmark_return is None else float(benchmark_return * 100),
     )
+
+
+def growth_index(closes: dict[str, pd.Series], weights: dict[str, float],
+                 benchmark: pd.Series | None, benchmark_name: str = "S&P 500") -> pd.DataFrame | None:
+    """What $100 in today's mix would have become, beside $100 in the benchmark.
+
+    Uses only dates every series shares, so the lines start together at 100.
+    """
+    if not closes:
+        return None
+    frame = pd.DataFrame({s: _daily(c) for s, c in closes.items()})
+    if benchmark is not None:
+        frame[benchmark_name] = _daily(benchmark)
+    frame = frame.dropna()
+    if len(frame) <= MIN_RISK_DAYS:
+        return None
+    returns = frame.pct_change().fillna(0.0)
+    total_weight = sum(weights[s] for s in closes)
+    mix = sum(returns[s] * (weights[s] / total_weight) for s in closes)
+    result = pd.DataFrame({"Your mix": 100 * (1 + mix).cumprod()})
+    if benchmark is not None:
+        result[benchmark_name] = 100 * frame[benchmark_name] / frame[benchmark_name].iloc[0]
+    return result
 
 
 def _observations(positions, risk, unavailable, excluded) -> list[str]:
@@ -243,4 +267,5 @@ def analyze_portfolio(holdings: list[Holding], market: MarketDataService) -> Por
         unavailable=unavailable,
         excluded_from_risk=excluded,
         observations=_observations(positions, risk, unavailable, excluded),
+        growth=growth_index(closes, weights, benchmark),
     )

@@ -3,6 +3,8 @@ import sqlite3
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from tests.fakes import FakeMarket
+
 
 @pytest.fixture
 def db(tmp_path, monkeypatch):
@@ -11,6 +13,8 @@ def db(tmp_path, monkeypatch):
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("src.core.llm.get_openai_key", lambda: None)
     monkeypatch.setattr("src.rag.store.get_openai_key", lambda: None)  # no API calls in tests
+    monkeypatch.setattr("src.web_app.dashboards.get_market_data", FakeMarket)  # no network either
+    monkeypatch.setattr("src.agents.registry.get_market_data", FakeMarket)
     return path
 
 
@@ -80,13 +84,14 @@ def test_bad_signup_shows_the_reason(db):
 def test_conversation_and_profile_return_after_a_new_login(db):
     at = open_app()
     sign_up(at)
-    at.selectbox[1].set_value("aggressive").run()
+    at.selectbox(key="profile_risk").set_value("aggressive").run()
     ask(at, "What is a Roth IRA?")
 
     # A new AppTest has empty session state, as a page refresh does.
     at = open_app()
     log_in(at)
-    assert at.selectbox[1].value == "aggressive"
+    assert at.selectbox(key="profile_risk").value == "aggressive"
+    assert at.selectbox(key="goal_risk").value == "aggressive"  # goals start from the profile
     assert "What is a Roth IRA?" not in page_text(at)  # starts on a new conversation
     submit(at, "What is a Roth IRA?")
     assert "What is a Roth IRA?" in page_text(at)
@@ -151,3 +156,48 @@ def test_a_rating_is_saved_once_and_kept(db, monkeypatch, tmp_path):
     assert not at.get("feedback")
     with sqlite3.connect(db) as conn:
         assert conn.execute("SELECT rating FROM turns WHERE rating IS NOT NULL").fetchall() == [(1,)]
+
+
+def test_dashboards_render_with_market_data(db):
+    at = open_app()
+    sign_up(at)
+    labels = {m.label for m in at.metric}
+    assert {"S&P 500", "Nasdaq Composite", "SPY latest price"} <= labels
+    assert len(at.get("plotly_chart")) == 1  # the price chart; others need input first
+
+
+def test_holdings_are_saved_analyzed_and_sent_to_chat(db):
+    at = open_app()
+    sign_up(at)
+    at.session_state["holdings_editor"] = {
+        "added_rows": [{"symbol": "AAPL", "shares": 10, "cost_per_share": 150}, {"symbol": "VOO", "shares": 6}],
+        "edited_rows": {}, "deleted_rows": []}
+    submit(at, "Save and analyze")
+    assert next(m for m in at.metric if m.label == "Total value").value == "$5,000.00"
+    assert len(at.get("plotly_chart")) == 3  # allocation, growth, and price
+
+    # The chat uses the saved holdings, even after logging in again.
+    at = open_app()
+    log_in(at)
+    ask(at, "How diversified is my portfolio?")
+    assert any("Portfolio" in c.value for c in at.caption if "Agents used" in c.value)
+    assert "5,000.00" in page_text(at)
+
+
+def test_bad_holdings_show_an_error_and_are_not_saved(db):
+    at = open_app()
+    sign_up(at)
+    at.session_state["holdings_editor"] = {
+        "added_rows": [{"symbol": "AAPL", "shares": -1}], "edited_rows": {}, "deleted_rows": []}
+    submit(at, "Save and analyze")
+    assert "Please fix your holdings" in at.error[0].value
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT count(*) FROM holdings").fetchone()[0] == 0
+
+
+def test_goal_projection_renders(db):
+    at = open_app()
+    sign_up(at)
+    submit(at, "Project my goal")
+    assert any(m.label == "Chance of reaching the goal" for m in at.metric)
+    assert len(at.get("plotly_chart")) == 2  # fan chart and price chart

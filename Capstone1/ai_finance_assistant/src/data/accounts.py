@@ -51,6 +51,10 @@ CREATE TABLE IF NOT EXISTS turns (
     rating INTEGER
 );
 CREATE INDEX IF NOT EXISTS turns_by_thread ON turns(thread_id, id);
+CREATE TABLE IF NOT EXISTS holdings (
+    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    data TEXT NOT NULL DEFAULT '[]'
+);
 """
 
 
@@ -142,6 +146,20 @@ class AccountStore:
     def save_profile(self, user_id: str, profile: dict) -> None:
         with closing(self._connect()) as conn, conn:
             conn.execute("UPDATE users SET profile = ? WHERE id = ?", (json.dumps(profile), user_id))
+
+    def get_holdings(self, user_id: str) -> list[dict]:
+        with closing(self._connect()) as conn:
+            row = conn.execute("SELECT data FROM holdings WHERE user_id = ?", (user_id,)).fetchone()
+        return json.loads(row["data"]) if row else []
+
+    def save_holdings(self, user_id: str, holdings: list[dict]) -> None:
+        """Expects rows already checked by portfolio_metrics.Holding."""
+        with closing(self._connect()) as conn, conn:
+            conn.execute(
+                "INSERT INTO holdings (user_id, data) VALUES (?, ?) "
+                "ON CONFLICT(user_id) DO UPDATE SET data = excluded.data",
+                (user_id, json.dumps(holdings)),
+            )
 
     # --- Conversations ---
     def ensure_thread(self, user_id: str, thread_id: str, title: str) -> None:
