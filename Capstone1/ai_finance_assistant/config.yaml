@@ -37,6 +37,8 @@ rag:
 news:
   cache_ttl_seconds: 900
   max_articles: 6
+database:
+  path: finance_assistant.db  # accounts, conversations, and checkpoints
 tracing:
   project_name: ai-finance-assistant
 pricing:  # USD per 1M tokens, from OpenAI's docs on 2026-11-01. Update when the model changes.

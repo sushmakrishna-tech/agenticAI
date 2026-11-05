@@ -115,3 +115,26 @@ def test_merge_drops_a_link_containing_figures():
                AgentOutput(agent="goals", content="goal", sources=[], error=False)]
     draft = make_merge_node(LLM())({"agent_outputs": outputs, "messages": [HumanMessage("q")]})["draft"]
     assert draft.startswith("### Goal Planning")
+
+
+def test_memory_survives_a_restart_with_parallel_agents(tmp_path):
+    import sqlite3
+
+    from langgraph.checkpoint.sqlite import SqliteSaver
+
+    def open_graph():
+        saver = SqliteSaver(sqlite3.connect(tmp_path / "c.db", check_same_thread=False))
+        saver.setup()
+        functions = {name: fake(name) for name in AGENTS}
+        return build_graph(llm=None, agent_functions=functions, checkpointer=saver), saver
+
+    graph, saver = open_graph()
+    result = ask(graph, "Will selling for my down payment raise my taxes?")
+    assert len(result["route"]) > 1  # the agents ran in parallel and saved together
+    saver.conn.close()
+
+    graph, saver = open_graph()
+    state = graph.get_state({"configurable": {"thread_id": "t1"}})
+    assert state.values["messages"][0].content.startswith("Will selling")
+    assert len(ask(graph, "And now?")["messages"]) == 4
+    saver.conn.close()

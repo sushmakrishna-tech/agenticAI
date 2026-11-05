@@ -2,7 +2,7 @@
 
 A multi-agent assistant for US financial education, built with LangGraph and Streamlit.
 
-**Status:** skeleton. The six agents answer through chat using live data and the knowledge base. Dashboards, accounts, end-to-end evals, and the MCP server are planned.
+**Status:** in progress. The six agents answer through chat using live data and the knowledge base, and users can log in and return to saved conversations. Dashboards and the MCP server are planned.
 
 ## Setup
 ```bash
@@ -19,6 +19,8 @@ streamlit run src/web_app/app.py
 pytest --cov=src
 ```
 Without an API key, the app still runs, routes using keyword rules, and shows calculated facts without explanations. Knowledge base questions need a key.
+
+Accounts and conversations are saved in `finance_assistant.db`, which Git ignores. This is a demo with no password reset, so don't reuse a real password or enter real financial details.
 
 ## Tracing (optional)
 Set `ARIZE_TRACING=true`, `ARIZE_SPACE_ID`, and `ARIZE_API_KEY` in `.env`. Prompts and user input are sent to Arize, so use made-up data.

@@ -15,9 +15,9 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 | Portfolio metrics, goal projections | Built and used by the agents; dashboards still planned |
 | Knowledge base and search | Built with 71 articles and used by the agents |
 | Portfolio and goal tab dashboards | Planned |
-| Arize tracing | Built; sends without errors, arrival in Arize awaiting confirmation |
+| Arize tracing | Built; traces confirmed in Arize |
 | End-to-end evals, metrics, and user feedback | Built; results in `docs/EVAL_RESULTS.md` |
-| User accounts and saved conversations (SQLite) | Planned |
+| User accounts and saved conversations (SQLite) | Built |
 | MCP server | Planned |
 
 ## System overview
@@ -145,7 +145,7 @@ News has no separate backup provider because Alpha Vantage's news feed is premiu
 ## Key decisions
 1. **Code calculates, the LLM explains.** Financial figures come from tested Python. Prompts alone did not hold in live testing, so `explain` in `src/agents/common.py` also rejects any answer containing a dollar amount, percentage, or year absent from its source data and the user's message, and shows the verified facts instead. It does not check other claims in the wording, which is what the planned evals cover.
 2. **Failures stay contained.** A failing agent yields an error output, and other agents still answer.
-3. **Conversation memory is per thread.** Today, `InMemorySaver` keeps it only while the server runs, and refreshing the page starts a new conversation. Accounts and SQLite storage are planned to replace this (see below).
+3. **Conversation memory is per thread.** The app saves it to SQLite with `SqliteSaver`, so it survives restarts. Tests and evals use `InMemorySaver` (see below).
 4. **Compliance is enforced by the graph,** so no agent can skip it.
 5. **Rules that must hold are enforced in code.** Evals showed the model can ignore prompt rules, and an LLM judge can miss it. So the market agent adds the prediction refusal in code, and the summary linking several agents' sections is dropped if it contains any figures.
 
@@ -179,26 +179,23 @@ Quotes stay fresh for 60 seconds and history for an hour. A rate-limited provide
 ## Goal projections
 `src/utils/goal_projections.py` gives a straight-line estimate and a seeded Monte Carlo simulation of monthly lognormal returns. Targets grow with inflation, and contributions stay flat. Return and volatility assumptions are illustrative values in `config.yaml`, and taxes and fees are ignored.
 
-## Accounts and saved conversations (planned)
-Users will create an account, log in, and return to their earlier conversations and profile. All data stays in one local SQLite file, which is excluded from Git.
+## Accounts and saved conversations
+Users create an account, log in, and return to their earlier conversations and profile. All data stays in one local SQLite file, which is excluded from Git and readable only by its owner.
 
 ```mermaid
 flowchart LR
     login["Sign up or log in"] --> users[("users<br/>password hash, profile")]
     login --> list["Choose or start<br/>a conversation"]
-    list --> threads[("threads<br/>which user owns which")]
+    list --> threads[("threads and turns<br/>ownership and chat history")]
     list --> graph["LangGraph workflow"]
     graph <--> checkpoints[("checkpoints<br/>conversation state")]
-
-    classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
-    class login,users,list,threads,graph,checkpoints planned
 ```
 
-- **Passwords:** stored only as salted `scrypt` hashes from Python's standard library, never as plain text. Login errors don't reveal whether an email exists.
-- **Conversations:** LangGraph's `SqliteSaver` replaces `InMemorySaver`. `build_graph` already accepts a checkpointer, so the workflow doesn't change.
-- **Access control:** a `threads` table records each conversation's owner, and the app checks ownership before loading one. Thread IDs alone are not treated as proof of access.
-- **Profile:** knowledge level, risk tolerance, and goals are saved per user and loaded into graph state.
-- **Limits:** the prototype has no email verification or password reset, and data is not encrypted at rest, so it is not suitable for real financial data as is. Logging in again after a page refresh is expected, though saved conversations remain. Moving to multiple servers would need a shared database such as Postgres.
+- **Passwords:** stored only as salted `scrypt` hashes from Python's standard library, never as plain text. Login errors and timing don't reveal whether an email exists, though sign-up does say when an email is taken.
+- **Conversations:** LangGraph's `SqliteSaver` holds what the agents remember. A `turns` table holds what the UI shows, including sources, agents, and ratings. Deleting a conversation clears both.
+- **Access control:** a `threads` table records each conversation's owner, and the app checks ownership before loading one. Every thread query filters by user, so a thread ID alone grants nothing.
+- **Profile:** knowledge level and risk tolerance are saved per user and passed into graph state.
+- **Limits:** the prototype has no email verification, password reset, login rate limit, or account deletion, and data is not encrypted at rest, so it is not suitable for real financial data as is. Logging in again after a page refresh is expected, though saved conversations remain. Moving to multiple servers would need a shared database such as Postgres.
 
 ## RAG
 71 articles summarize public pages from Investor.gov, FINRA, and the IRS in `src/data/knowledge_base/`. Each is tagged with one of six categories, its source URL, and its retrieval date. Indexing fails if an article has no source on those domains.
