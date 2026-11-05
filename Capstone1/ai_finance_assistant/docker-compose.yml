@@ -1,0 +1,16 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file: .env  # API keys stay out of the image
+    volumes:
+      - finance-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+
+volumes:
+  finance-data:

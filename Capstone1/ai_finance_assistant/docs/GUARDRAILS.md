@@ -82,6 +82,20 @@ Retrieved articles, market data, and news come from outside the app, so they are
 | False positives | The advice check can flag a scam warning that quotes "guaranteed returns" | Review flagged answers in traces |
 | No login rate limit | Passwords can be guessed repeatedly | Lock out after repeated failures |
 
+## MCP server
+`ask_finance_assistant` runs the full workflow, so every guardrail above applies. The other tools return data for the client's own model to explain, so they skip the figure check, advice check, and prediction refusal.
+
+| Protection | What it does |
+|---|---|
+| Server instructions | Ask the client to treat results as education, not advice or predictions |
+| Disclaimer field | Portfolio and goal results include the "not personalized advice" note |
+| Input limits | Questions up to 2,000 characters, up to 10 symbols, and up to 50 holdings |
+| Validated input | Symbols, holdings, and goal values use the same checks as the app |
+| Cutoff and sources | Knowledge base search keeps the 0.3 cutoff and returns each source link |
+| No account access | The server reads no saved users, holdings, or conversations |
+
+The client's model can still give advice in its own words, and nothing on the server can stop that.
+
 ## How guardrails are verified
 - **Unit tests** cover each code guardrail, as listed above.
 - **Agent evals** (`python -m src.workflow.evaluate`) measure advice safety, prediction refusals, out-of-scope declines, and faithfulness. See [EVAL_RESULTS.md](EVAL_RESULTS.md).

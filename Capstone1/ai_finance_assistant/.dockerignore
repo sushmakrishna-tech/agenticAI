@@ -1,0 +1,12 @@
+.env
+.venv/
+.git
+__pycache__/
+.pytest_cache/
+.coverage
+chroma_db/
+*.db
+*.db-*
+feedback.jsonl
+tests/
+docs/

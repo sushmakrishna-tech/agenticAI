@@ -10,15 +10,16 @@ Education for US beginners, not personalized advice. Tax content covers US rules
 |---|---|
 | LangGraph workflow, router, memory, compliance | Built |
 | Market data layer | Built; Alpha Vantage tested only against simulated responses |
-| Streamlit app | Chat works; dashboard tabs are placeholders |
-| Six agents | Built and tested with live data; not yet tested with the UI dashboards |
+| Streamlit app | Chat and dashboard tabs built |
+| Six agents | Built and tested with live data |
 | Portfolio metrics, goal projections | Built and used by the agents and dashboards |
 | Knowledge base and search | Built with 71 articles and used by the agents |
 | Portfolio, Market, and Goals dashboards | Built |
 | Arize tracing | Built; traces confirmed in Arize |
 | End-to-end evals, metrics, and user feedback | Built; results in `docs/EVAL_RESULTS.md` |
 | User accounts and saved conversations (SQLite) | Built |
-| MCP server | Planned |
+| MCP server | Built; tested over stdio with live data |
+| Docker | Written; not yet built, because Docker isn't installed on the dev machine |
 
 ## System overview
 ```mermaid
@@ -35,13 +36,16 @@ flowchart TB
 
     workflow --> openai[("OpenAI API")]
     workflow --> tools
-    mcp["MCP server"] -.-> tools
+    client(["AI client<br/>such as Claude Desktop"]) --> mcp["MCP server"]
+    mcp --> tools
+    mcp --> workflow
 
-    subgraph tools["Tools the agents will use"]
+    subgraph tools["Tools"]
         direction LR
         market["Market data service"]
         calculators["Portfolio and goal calculators"]
         rag["Knowledge base<br/>Chroma"]
+        news["News search"]
     end
 
     tools --> providers[("yFinance<br/>Alpha Vantage")]
@@ -50,14 +54,12 @@ flowchart TB
     classDef stub fill:#fef3c7,stroke:#b45309,color:#78350f
     classDef planned fill:#e5e7eb,stroke:#6b7280,color:#1f2937,stroke-dasharray:5 5
     classDef external fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a
-    class ui,router,agents,merge,compliance,market,calculators,rag built
-    class agents stub
-    class mcp planned
+    class ui,router,agents,merge,compliance,market,calculators,rag,news,mcp built
     class openai,providers external
     style workflow fill:#f8fafc,stroke:#94a3b8,color:#0f172a
     style tools fill:#f8fafc,stroke:#94a3b8,color:#0f172a
 ```
-**Key:** green is built, gray is planned, and blue is an external service. Dashed arrows are connections that don't exist yet. Only the market data service uses yFinance and Alpha Vantage.
+**Key:** green is built and blue is an external service. Only the market data service uses yFinance and Alpha Vantage.
 
 ## Stack
 | Concern | Choice | Why |
@@ -191,6 +193,34 @@ The Portfolio, Market, and Goals tabs use the same calculation code as the agent
 - **Holdings and chat:** holdings typed in a question win, so "what if I owned 10 AAPL?" works. Otherwise the Portfolio agent uses the saved holdings. This costs one extraction call even when saved holdings exist.
 - **Colors:** a colorblind-checked palette, blue for the main series and orange for the comparison, with direct labels so identity doesn't rely on color. Streamlit's theme handles light and dark mode.
 - **Cost of live data:** Streamlit runs every tab on each interaction, so the Market tab fetches quotes then. The 60-second cache limits this to about a second, once a minute.
+
+## MCP server
+`src/mcp_server/server.py` exposes the assistant to any MCP client, such as Claude Desktop, over stdio. Run it with `python -m src.mcp_server.server`.
+
+| Tool | Uses | LLM call |
+|---|---|---|
+| `get_quote`, `market_overview` | Market data service, up to 10 symbols | No |
+| `get_price_history` | Market data service; returns a summary, not every close | No |
+| `analyze_portfolio` | Portfolio metrics | No |
+| `project_goal` | Goal projections | No |
+| `search_knowledge_base` | Chroma, with the same 0.3 cutoff as the agents | Embeddings only |
+| `search_news` | News service | No |
+| `ask_finance_assistant` | The whole LangGraph workflow, including compliance | Yes |
+
+- **Code calculates, the client explains.** Most tools return data, and the client's model writes the answer. Those tools skip the app's figure check and compliance step, so they return a disclaimer and the server's instructions ask the client not to give advice or predictions. `ask_finance_assistant` keeps every guardrail.
+- **No accounts.** The server reads no saved users, holdings, or conversations. Each `ask_finance_assistant` call is a new conversation.
+- **Input limits.** Questions are capped at 2,000 characters, symbols at 10, and holdings at 50. Invalid input comes back as a tool error.
+- **Clean output.** Numbers are rounded to 2 decimals, and dates are ISO text. Logs and the Arize banner go to stderr, since stdout carries the protocol.
+
+## Docker
+The `Dockerfile` builds one image for both the app and the MCP server.
+
+- **Data:** the database, search index, and feedback file live in the `/app/data` volume, so they survive restarts.
+- **Index:** built on first start, which calls OpenAI embeddings. A marker file is written only after a full build, so a failed build is retried.
+- **Secrets:** keys come from `.env` at run time and are never copied into the image. `.dockerignore` also excludes local data.
+- **User:** runs as a non-root user.
+
+Not yet verified: Docker isn't installed on the dev machine, so the image hasn't been built.
 
 ## Accounts and saved conversations
 Users create an account, log in, and return to their earlier conversations and profile. All data stays in one local SQLite file, which is excluded from Git and readable only by its owner.
